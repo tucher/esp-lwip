@@ -350,8 +350,10 @@ ppp_close(ppp_pcb *pcb, u8_t nocarrier)
     return ERR_OK;
   }
 
-  /* Already terminating, nothing to do */
-  if (pcb->phase >= PPP_PHASE_TERMINATE) {
+  /* Already terminating, nothing to do -- unless the carrier is lost, and
+   * there is no peer left to finish the terminate exchange with */
+  if (pcb->phase > PPP_PHASE_TERMINATE
+      || (pcb->phase == PPP_PHASE_TERMINATE && !nocarrier)) {
     return ERR_INPROGRESS;
   }
 
@@ -363,13 +365,16 @@ ppp_close(ppp_pcb *pcb, u8_t nocarrier)
   }
 
   /*
-   * Only accept carrier lost signal on the stable running phase in order
-   * to prevent changing the PPP phase FSM in transition phases.
+   * Carrier lost: close without the shutdown procedure, as documented, in
+   * whatever phase the link is. Taking LCP down cancels the timers of every
+   * protocol still negotiating or terminating; the link then ends at once
+   * and the pcb can be freed, where waiting would only run those timers out
+   * against a peer that is gone.
    *
-   * Always using nocarrier = 0 is still recommended, this is going to
-   * take a little longer time, but is a safer choice from FSM point of view.
+   * Always using nocarrier = 0 is still recommended when the link is up,
+   * this is going to take a little longer time, but lets the peer know.
    */
-  if (nocarrier && pcb->phase == PPP_PHASE_RUNNING) {
+  if (nocarrier) {
     PPPDEBUG(LOG_DEBUG, ("ppp_close[%d]: carrier lost -> lcp_lowerdown\n", pcb->netif->num));
     lcp_lowerdown(pcb);
     /* forced link termination, this will force link protocol to disconnect. */

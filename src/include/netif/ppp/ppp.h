@@ -633,9 +633,10 @@ err_t ppp_listen(ppp_pcb *pcb);
  * Any outstanding packets in the queues are dropped.
  *
  * Setting nocarrier to 1 close the PPP connection without initiating the
- * shutdown procedure. Always using nocarrier = 0 is still recommended,
+ * shutdown procedure, in any phase: the link is dead when this returns, and
+ * the pcb can be freed. Always using nocarrier = 0 is still recommended,
  * this is going to take a little longer time if your link is down, but
- * is a safer choice for the PPP state machine.
+ * lets the peer know.
  *
  * Return 0 on success, an error code on failure.
  */
